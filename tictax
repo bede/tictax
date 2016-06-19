@@ -35,29 +35,16 @@ def async_one_codex_classification(records):
         payload = {'sequence': str(sequence)}
         async with session.post(url, data=payload) as response:
             return name, await response.json()
-    
-    # async def loop():
-    #     auth = aiohttp.BasicAuth(api_key)
-    #     conn = aiohttp.TCPConnector(limit=100)
-    #     with aiohttp.ClientSession(auth=auth, connector=conn) as session:
-    #         tasks = [fetch(session, record.id, record.seq) for record in records]
-    #         responses = await asyncio.gather(*tasks)    
-    #     return OrderedDict(responses)
 
     async def loop():
         auth = aiohttp.BasicAuth(api_key)
         conn = aiohttp.TCPConnector(limit=100)
         with aiohttp.ClientSession(auth=auth, connector=conn) as session:
             tasks = [fetch(session, record.id, record.seq) for record in records]
+            responses = []
             for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
-                await f
-            responses = await asyncio.gather(f)
-            print('>>', end=' ')
-            print(responses)
-
-    # async def progress(coros):  
-    #     for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(coros)):
-    #         yield from f
+                responses.append(await f)
+            return OrderedDict(responses)
 
     return asyncio.get_event_loop().run_until_complete(loop())
 

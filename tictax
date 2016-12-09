@@ -17,7 +17,7 @@ def prerequisites():
         print('1) Sign up for a One Codex account at https://www.onecodex.com')
         print('2) Copy and paste your API key below')
         api_key = input('API key: ').strip()
-        with open('one_codex_api_key', 'w') as api_key_file:
+        with open('one_codex_api_key', 'w') as api_key_file: # Needs storing in a sensible place... dotfile?
             api_key_file.write(api_key)
         print('Key saved')
 
@@ -35,10 +35,12 @@ def async_one_codex_classification(records):
         payload = {'sequence': str(sequence)}
         async with session.post(url, data=payload) as response:
             return name, await response.json()
+            # catch 500s, timeouts
+            # use inbuilt aiohttp timeout
 
     async def loop():
         auth = aiohttp.BasicAuth(api_key)
-        conn = aiohttp.TCPConnector(limit=100)
+        conn = aiohttp.TCPConnector(limit=100) # OneCodex limit
         with aiohttp.ClientSession(auth=auth, connector=conn) as session:
             tasks = [fetch(session, record.id, record.seq) for record in records]
             responses = []
@@ -58,7 +60,7 @@ def async_ebi_taxonomy(names_taxids):
             return record_id, json
 
     async def loop():
-        conn = aiohttp.TCPConnector(limit=30)
+        conn = aiohttp.TCPConnector(limit=30) # NCBI limit
         with aiohttp.ClientSession(connector=conn) as session:
             tasks = [fetch(session, n, t) for n, t in names_taxids_nz.items()] 
             responses = await asyncio.gather(*tasks)
@@ -85,20 +87,21 @@ def annotated_fasta(records, assignments, taxonomies):
     SeqIO.write(records, sys.stdout, 'fasta')
 
 
-prerequisites()
+if __name__ == '__main__':
+    prerequisites()
 
-print('Loading…', end=' ', file=sys.stderr, flush=True)
-records = fasta_seqrecords(sys.argv[1])
-print('{} sequences ✓'.format(len(records)), file=sys.stderr)
+    print('Loading…', end=' ', file=sys.stderr, flush=True)
+    records = fasta_seqrecords(sys.argv[1])
+    print('{} sequences ✓'.format(len(records)), file=sys.stderr)
 
-print('Classifying sequences…', file=sys.stderr)
-assignments = async_one_codex_classification(records)
-assignment_taxids = OrderedDict((k, v['tax_id']) if 'tax_id' in v else (k, '0') for k, v in assignments.items())
+    print('Classifying sequences…', file=sys.stderr)
+    assignments = async_one_codex_classification(records)
+    assignment_taxids = OrderedDict((k, v['tax_id']) if 'tax_id' in v else (k, '0') for k, v in assignments.items())
 
-print('Fetching lineages', end=' ', file=sys.stderr, flush=True)
-taxonomies = async_ebi_taxonomy(assignment_taxids)
-print('✓', file=sys.stderr)
+    print('Fetching lineages', end=' ', file=sys.stderr, flush=True)
+    taxonomies = async_ebi_taxonomy(assignment_taxids)
+    print('✓', file=sys.stderr)
 
-print('Annotating headers', end=' ', file=sys.stderr, flush=True)
-annotated_fasta(records, assignments, taxonomies)
-print('✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌', file=sys.stderr)
+    print('Annotating headers', end=' ', file=sys.stderr, flush=True)
+    annotated_fasta(records, assignments, taxonomies)
+    print('✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌', file=sys.stderr)

@@ -1,4 +1,6 @@
 .DS_Store
-one_codex_api_key
-other/
-test_data/
+*.py[cod]
+__pycache__/
+.cache/
+dist/
+kindel.egg-info/

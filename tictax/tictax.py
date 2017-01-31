@@ -28,18 +28,21 @@ def fasta_seqrecords(fasta_path):
 
 
 def prepare_record(sequence, id, classification):
-    description = f'{classification["taxid"]}|{classification["sciname"]}|{classification["rank"]}|{":".join(classification["lineage"])}'
+    description = (str(classification['taxid'])
+                   + '|' + classification['sciname']
+                   + '|' + classification['rank']
+                   + '|' + ':'.join(classification['lineage']))
     record = SeqRecord(Seq(sequence, IUPAC.ambiguous_dna), id=id, description=description)
     return record.format('fasta')
 
 
 async def classify_oc(session, sequence_id, sequence):
     url = 'https://app.onecodex.com/api/v0/search'
-    payload = {'sequence': str(sequence)[:50000]}
+    payload = {'sequence': str(sequence)[:25000]}
     try:
         async with session.post(url, data=payload, timeout=60) as response:
             r = await response.json()
-    except asyncio.TimeoutError:
+    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError):
         r = {}
     return {'taxid': r.get('tax_id', 0),
             'k': r.get('k', ''),
@@ -58,10 +61,10 @@ async def taxify_ebi(session, sequence_id, taxid):
         async with session.get(url.format(taxid), timeout=60) as response:
             r = await response.json()
             template['sciname'] = r.get('scientificName', '')
-            template['lineage'] = r.get('lineage', '')
+            template['lineage'] = r['lineage'].strip(' ;').split('; ') if 'lineage' in r else []
             template['rank'] = r.get('rank', '')
             return template
-    except asyncio.TimeoutError:
+    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError):
         return template
 
 
@@ -83,6 +86,7 @@ async def classify_taxify_records(records):
             # responses = await asyncio.gather(*tasks)
     # return dict(responses)
             return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
+            # return [await f for f in asyncio.as_completed(tasks)]
 
 if __name__ == '__main__':
     prerequisites()

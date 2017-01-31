@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import tqdm
+import argh
 import asyncio
 import aiohttp
 
@@ -40,9 +41,9 @@ async def classify_oc(session, sequence_id, sequence):
     url = 'https://app.onecodex.com/api/v0/search'
     payload = {'sequence': str(sequence)[:25000]}
     try:
-        async with session.post(url, data=payload, timeout=60) as response:
+        async with session.post(url, data=payload, timeout=600) as response:
             r = await response.json()
-    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError):
+    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError, json.decoder.JSONDecodeError):
         r = {}
     return {'taxid': r.get('tax_id', 0),
             'k': r.get('k', ''),
@@ -58,13 +59,13 @@ async def taxify_ebi(session, sequence_id, taxid):
         template['sciname'] = 'root'
         return template
     try:
-        async with session.get(url.format(taxid), timeout=60) as response:
+        async with session.get(url.format(taxid), timeout=600) as response:
             r = await response.json()
             template['sciname'] = r.get('scientificName', '')
             template['lineage'] = r['lineage'].strip(' ;').split('; ') if 'lineage' in r else []
             template['rank'] = r.get('rank', '')
             return template
-    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError):
+    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError, json.decoder.JSONDecodeError):
         return template
 
 
@@ -79,7 +80,7 @@ async def classify_taxify(oc_session, ebi_session, sequence_id, sequence):
 
 async def classify_taxify_records(records):
     oc_auth = aiohttp.BasicAuth('0f63476dfb8d4b5d95c96bc96af70d7d')
-    conn = aiohttp.TCPConnector(limit=15)
+    conn = aiohttp.TCPConnector(limit=10)
     with aiohttp.ClientSession(auth=oc_auth, connector=conn) as oc_session:
         with aiohttp.ClientSession(connector=conn) as ebi_session:
             tasks = [classify_taxify(oc_session, ebi_session, r.id, str(r.seq)) for r in records]
@@ -88,9 +89,33 @@ async def classify_taxify_records(records):
             return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
             # return [await f for f in asyncio.as_completed(tasks)]
 
-if __name__ == '__main__':
+
+def kmer_lca(fasta_path, one_codex=True):
     prerequisites()
-    records = fasta_seqrecords(sys.argv[1])
+    records = fasta_seqrecords(fasta_path)
     print('Classifying sequences…', file=sys.stderr)
     asyncio.get_event_loop().run_until_complete(classify_taxify_records(records))
     print('✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌', file=sys.stderr)
+
+
+#---------------------------------------------------------------------------------------------------
+
+def filter(fasta_path, taxid):
+    pass
+
+def kmer_lca_online():
+    pass
+
+def kmer_lca_offline():
+    pass
+
+def blast_lca_offline():
+    pass
+
+
+parser = argh.ArghParser()
+parser.add_commands([kmer_lca, blast, sort, filter])
+
+
+if __name__ == '__main__':
+    parser.dispatch()

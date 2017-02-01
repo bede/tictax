@@ -2,11 +2,15 @@
 
 import os
 import sys
+import ete3
 import json
 import tqdm
 import argh
 import asyncio
 import aiohttp
+import sqlite3
+
+import pandas as pd
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -103,18 +107,40 @@ def kmer_lca(fasta_path, one_codex=True):
 def filter(fasta_path, taxid):
     pass
 
+def sort():
+    pass
+
 def kmer_lca_online():
     pass
 
-def kmer_lca_offline():
-    pass
+def kmer_lca_offline(fasta_path, classifications_path, lineage=False):
+    ncbi = ete3.NCBITaxa()
+    records = SeqIO.parse(fasta_path, 'fasta')
+    lcas = pd.read_csv(classifications_path, sep='\t', usecols=[0,1])
+    lcas['Header'] = lcas['Header'].map(lambda x: x.lstrip('>'))
+    ids_lcas = dict(lcas.to_records(index=False))
+    # amended_records = []
+    for r in records:
+        taxid = ids_lcas[r.id]
+        if taxid:
+            sciname = ncbi.translate_to_names([taxid])[0]
+            lineage_taxids = ncbi.get_lineage(taxid)
+            lineage_taxids_names = ncbi.get_taxid_translator(lineage_taxids)
+            lineage_fmt = ':'.join([lineage_taxids_names[t] for t in lineage_taxids])
+        else:
+            sciname, lineage_fmt = '', ''
+        r.description = '|{}|{}|{}|'.format(taxid, sciname, lineage)
+        # amended_records.append(r)
+        print(r.format('fasta'), end='')
+    # SeqIO.write(amended_records, sys.stdout, 'fasta')
+
 
 def blast_lca_offline():
     pass
 
 
 parser = argh.ArghParser()
-parser.add_commands([kmer_lca, blast, sort, filter])
+parser.add_commands([kmer_lca, kmer_lca_offline, sort, filter])
 
 
 if __name__ == '__main__':

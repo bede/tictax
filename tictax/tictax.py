@@ -12,10 +12,15 @@ import sqlite3
 
 import pandas as pd
 
+import plotly.offline as py
+import plotly.graph_objs as go
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 from Bio.SeqRecord import SeqRecord
+
+
 
 def prerequisites():
     if not os.path.exists('one_codex_api_key'):
@@ -104,13 +109,35 @@ def kmer_lca(fasta_path, one_codex=True):
 
 #---------------------------------------------------------------------------------------------------
 
-def filter(fasta_path, taxid):
-    pass
+def filter(fasta_path, taxid=None, unclassified=False):
+    ncbi = ete3.NCBITaxa()
+    bad_taxids = set([9606, 131567, 2759])
+    bad_superkingdoms = set([2, 2157, 2759])
+
+
+    if unclassified:
+        records = SeqIO.parse(fasta_path, 'fasta')
+        for r in records:
+            desc = r.description.partition(' ')[2]
+            if desc:
+                taxid = max(int(desc.strip('|').split('|')[0]), 1)
+                lineage_taxids = ncbi.get_lineage(taxid)
+                if len(lineage_taxids) >= 3:
+                    if lineage_taxids[2] not in bad_superkingdoms:
+                        if taxid not in bad_taxids:
+                            print(r.format('fasta'), end='')
+                else:
+                    print(r.format('fasta'), end='')
+
 
 def sort():
     pass
 
 def kmer_lca_online():
+    pass
+
+def blast_lca_offline(fasta_path, classifications_path, acc2tax_path):
+
     pass
 
 def kmer_lca_offline(fasta_path, classifications_path, lineage=False):
@@ -121,7 +148,7 @@ def kmer_lca_offline(fasta_path, classifications_path, lineage=False):
     ids_lcas = dict(lcas.to_records(index=False))
     # amended_records = []
     for r in records:
-        taxid = ids_lcas[r.id]
+        taxid = int(ids_lcas[r.id])
         if taxid:
             sciname = ncbi.translate_to_names([taxid])[0]
             lineage_taxids = ncbi.get_lineage(taxid)
@@ -129,18 +156,16 @@ def kmer_lca_offline(fasta_path, classifications_path, lineage=False):
             lineage_fmt = ':'.join([lineage_taxids_names[t] for t in lineage_taxids])
         else:
             sciname, lineage_fmt = '', ''
-        r.description = '|{}|{}|{}|'.format(taxid, sciname, lineage)
+        r.description = '|{}|{}|{}|'.format(taxid, sciname, lineage_fmt)
         # amended_records.append(r)
         print(r.format('fasta'), end='')
     # SeqIO.write(amended_records, sys.stdout, 'fasta')
 
-
-def blast_lca_offline():
+def plot(fasta_path):
     pass
 
-
 parser = argh.ArghParser()
-parser.add_commands([kmer_lca, kmer_lca_offline, sort, filter])
+parser.add_commands([plot, kmer_lca, kmer_lca_offline, sort, filter])
 
 
 if __name__ == '__main__':

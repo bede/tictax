@@ -109,7 +109,16 @@ def kmer_lca(fasta_path, one_codex=True):
 
 #---------------------------------------------------------------------------------------------------
 
-def filter(fasta_path, taxid=None, unclassified=False):
+def filter(fasta_path, include=True, taxids=None):
+    ncbi = ete3.NCBITaxa()
+    records = SeqIO.parse(fasta_path, 'fasta')
+    for r in records:
+        description = r.description.partition(' ')[2]
+        fields = tuple(description.split('|')[1:-1]) # remove bookend pipes
+        print(fields)
+        lineage_taxids = ncbi.get_lineage(taxid)
+
+def filter_old(fasta_path, taxid=None, unclassified=False):
     ncbi = ete3.NCBITaxa()
     bad_taxids = set([9606, 131567, 2759])
     bad_superkingdoms = set([2, 2157, 2759])
@@ -164,8 +173,29 @@ def kmer_lca_offline(fasta_path, classifications_path, lineage=False):
 def plot(fasta_path):
     pass
 
+def annotate_megan_taxids(fasta_path, megan_csv_path):
+    ncbi = ete3.NCBITaxa()
+    records = SeqIO.parse(fasta_path, 'fasta')
+    ids_taxids = dict(pd.read_csv(megan_csv_path, sep='\t').to_records(index=False))
+    for r in records:
+        if r.id in ids_taxids:
+            taxid = ids_taxids[r.id]
+            if taxid > 0:
+                sciname = ncbi.translate_to_names([taxid])[0]
+                lineage_taxids = ncbi.get_lineage(taxid)
+                rank = ncbi.get_rank([taxid]).get(taxid, 'unknown')
+                lineage_taxids_names = ncbi.get_taxid_translator(lineage_taxids)
+                lineage_names_fmt = ':'.join([lineage_taxids_names.get(t, 'unknown') for t in lineage_taxids])
+                r.description = '|{}|{}|{}|{}|'.format(taxid, sciname, rank, lineage_names_fmt) # names
+            else:
+
+                rank, sciname, lineage_fmt = '', '', ''
+                r.description = '|{}|{}|{}|{}|'.format(taxid, sciname, rank, lineage_names_fmt) # names
+            print(r.format('fasta'), end='')
+
+
 parser = argh.ArghParser()
-parser.add_commands([plot, kmer_lca, kmer_lca_offline, sort, filter])
+parser.add_commands([plot, kmer_lca, kmer_lca_offline, sort, filter, filter_old, annotate_megan_taxids])
 
 
 if __name__ == '__main__':

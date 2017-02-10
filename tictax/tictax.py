@@ -120,9 +120,10 @@ def filter(fasta_path: 'path to tictax annotated fasta file',
         match = False
         description = r.description.partition(' ')[2]
         fields = tuple(description.split('|')[1:-1]) # remove bookend pipes
+        # print(fields)
         taxid = int(fields[0])
-        if taxid > 0: # ETE can produce negative taxids
-            lineage = set(ncbi.get_lineage(int(taxid)))
+        if taxid >= 0: # ETE can produce negative taxids
+            lineage = set(ncbi.get_lineage(int(taxid))) if taxid else set([0])
             if set.intersection(lineage, filter_taxids):
                 match = True
             if exclude: # exclude matched records
@@ -135,6 +136,7 @@ def filter(fasta_path: 'path to tictax annotated fasta file',
                     print(r.format('fasta'), end='')
                 else:
                     continue
+
 
 
 def filter_old(fasta_path, taxid=None, unclassified=False):
@@ -205,11 +207,9 @@ def annotate_megan_taxids(fasta_path, megan_csv_path):
                 rank = ncbi.get_rank([taxid]).get(taxid, 'unknown')
                 lineage_taxids_names = ncbi.get_taxid_translator(lineage_taxids)
                 lineage_names_fmt = ':'.join([lineage_taxids_names.get(t, 'unknown') for t in lineage_taxids])
-                r.description = '|{}|{}|{}|{}|'.format(taxid, sciname, rank, lineage_names_fmt) # names
+                r.description = '|{}|{}|{}|{}|'.format(taxid, sciname, rank, lineage_names_fmt)
             else:
-
-                rank, sciname, lineage_fmt = '', '', ''
-                r.description = '|{}|{}|{}|{}|'.format(taxid, sciname, rank, lineage_names_fmt) # names
+                r.description = '|0|unknown|unknown|unknown|'
             print(r.format('fasta'), end='')
 
 

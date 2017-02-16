@@ -22,5 +22,6 @@ setup(name='tictax',
                         'argh',
                         'pandas',
                         'plotly',
-                        'aiohttp',],
+                        'aiohttp',
+                        'biopython'],
       entry_points = {'console_scripts':['tictax=tictax.cli:main']})

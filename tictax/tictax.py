@@ -21,16 +21,24 @@ from Bio.Alphabet import IUPAC
 from Bio.SeqRecord import SeqRecord
 
 
+tick_tacks = '✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌'
 
-def prerequisites():
-    if not os.path.exists('one_codex_api_key'):
-        print('Tictax requires a One Codex API key')
+def config():
+    conf = {}
+    conf_path = os.path.join(os.path.expanduser('~'), '.tictax')
+    if not os.path.exists(conf_path):
+        print('----------------\n- TICTAX SETUP -\n----------------')
+        print('Tictax needs a One Codex API key to do streaming sequence classification')
         print('1) Sign up for a One Codex account at https://www.onecodex.com')
-        print('2) Copy and paste your API key below')
-        api_key = input('API key: ').strip()
-        with open('one_codex_api_key', 'w') as api_key_file: # Needs storing in a sensible place... dotfile?
-            api_key_file.write(api_key)
-        print('Key saved')
+        print('2) Paste your API key below and it will be saved for future sessions')
+        conf['one_codex_api_key'] = input('API key: ').strip()
+        with open(conf_path, 'w') as conf_fh: # Needs storing in a sensible place... dotfile?
+            json.dump(conf, conf_fh)
+        print(f'Config saved to {conf_path}')
+        return conf
+    else:
+        with open(conf_path, 'r') as conf_fh:
+            return json.load(conf_fh)
 
 
 def fasta_seqrecords(fasta_path):
@@ -87,23 +95,30 @@ async def classify_taxify(oc_session, ebi_session, sequence_id, sequence):
     return sequence_id, {**classification, **taxification} # merge dicts
 
 
-async def classify_taxify_records(records):
-    oc_auth = aiohttp.BasicAuth('0f63476dfb8d4b5d95c96bc96af70d7d')
+async def classify_taxify_records(records, one_codex_api_key, progress):
+    oc_auth = aiohttp.BasicAuth(one_codex_api_key)
     conn = aiohttp.TCPConnector(limit=10)
     with aiohttp.ClientSession(auth=oc_auth, connector=conn) as oc_session:
         with aiohttp.ClientSession(connector=conn) as ebi_session:
             tasks = [classify_taxify(oc_session, ebi_session, r.id, str(r.seq)) for r in records]
             # responses = await asyncio.gather(*tasks)
-    # return dict(responses)
-            return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
-            # return [await f for f in asyncio.as_completed(tasks)]
+            # return dict(responses)
+            if progress:
+                return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
+            else:
+                return [await f for f in asyncio.as_completed(tasks)]
 
 
-def kmer_lca(fasta_path, one_codex=True):
-    prerequisites()
+def kmer_lca(fasta_path,
+             out: 'send tab delimited classification output to file' = False,
+             progress: 'show progress bar (sent to stderr)' = False):
+    '''Parallel taxonomic annotation of fasta sequences using the One Codex API'''
+    conf = config()
     records = fasta_seqrecords(fasta_path)
     print('Classifying sequences…', file=sys.stderr)
-    asyncio.get_event_loop().run_until_complete(classify_taxify_records(records))
+    asyncio.get_event_loop().run_until_complete(classify_taxify_records(records,
+                                                                        conf['one_codex_api_key'],
+                                                                        progress))
     print('✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌', file=sys.stderr)
 
 
@@ -214,7 +229,13 @@ def annotate_megan_taxids(fasta_path, megan_csv_path):
 
 
 parser = argh.ArghParser()
-parser.add_commands([plot, kmer_lca, kmer_lca_offline, sort, filter, filter_old, annotate_megan_taxids])
+parser.add_commands([plot,
+                     kmer_lca,
+                     kmer_lca_offline,
+                     sort,
+                     filter,
+                     filter_old, 
+                     annotate_megan_taxids])
 
 
 if __name__ == '__main__':

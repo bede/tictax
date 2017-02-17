@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-
 import os
 import sys
-import ete3
+# import ete3
 import json
 import tqdm
 import argh
@@ -34,7 +32,7 @@ def config():
         conf['one_codex_api_key'] = input('API key: ').strip()
         with open(conf_path, 'w') as conf_fh: # Needs storing in a sensible place... dotfile?
             json.dump(conf, conf_fh)
-        print(f'Config saved to {conf_path}')
+        print('Config saved to {}'.format(conf_path))
         return conf
     else:
         with open(conf_path, 'r') as conf_fh:
@@ -103,10 +101,15 @@ async def classify_taxify_records(records, one_codex_api_key, progress):
             tasks = [classify_taxify(oc_session, ebi_session, r.id, str(r.seq)) for r in records]
             # responses = await asyncio.gather(*tasks)
             # return dict(responses)
+            responses = [] # Can't use async generators in 3.5... See comments below
             if progress:
-                return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
+                for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
+                    responses.append(await f)
+                # return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
             else:
-                return [await f for f in asyncio.as_completed(tasks)]
+                for f in asyncio.as_completed(tasks):
+                    responses.append(await f)
+                # return [await f for f in asyncio.as_completed(tasks)]
 
 
 def kmer_lca(fasta_path,

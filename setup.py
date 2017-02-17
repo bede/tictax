@@ -24,4 +24,5 @@ setup(name='tictax',
                         'plotly',
                         'aiohttp',
                         'biopython'],
+      package_data={'tictax': ['tests/test.fa']},
       entry_points = {'console_scripts':['tictax=tictax.cli:main']})

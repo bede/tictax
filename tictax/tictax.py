@@ -39,20 +39,21 @@ def config():
             return json.load(conf_fh)
 
 
-def fasta_seqrecords(fasta_path):
+def parse_fasta(fasta_path):
     return list(SeqIO.parse(fasta_path, 'fasta'))
 
 
-def prepare_record(sequence, id, classification):
+def build_record(id, classification):
     description = (str(classification['taxid'])
                    + '|' + classification['sciname']
                    + '|' + classification['rank']
                    + '|' + ':'.join(classification['lineage']))
-    record = SeqRecord(Seq(sequence, IUPAC.ambiguous_dna), id=id, description=description)
-    return record.format('fasta')
+    record = SeqRecord(Seq(classification['sequence'], IUPAC.ambiguous_dna),
+                       id=id, description=description)
+    return record
 
 
-async def classify_oc(session, sequence_id, sequence):
+async def oc_classify_single(session, sequence_id, sequence):
     url = 'https://app.onecodex.com/api/v0/search'
     payload = {'sequence': str(sequence)[:25000]}
     try:
@@ -60,8 +61,9 @@ async def classify_oc(session, sequence_id, sequence):
             r = await response.json()
     except (asyncio.TimeoutError, aiohttp.errors.ClientOSError, json.decoder.JSONDecodeError):
         r = {}
-    return {'taxid': r.get('tax_id', 0),
+    return {'sequence': sequence,
             'k': r.get('k', ''),
+            'taxid': r.get('tax_id', 0),
             'support': round(r.get('n_hits', 0)/max(r.get('n_lookups', 1), 1), 4)}
 
 
@@ -85,45 +87,76 @@ async def taxify_ebi(session, sequence_id, taxid):
 
 
 async def classify_taxify(oc_session, ebi_session, sequence_id, sequence):
-    classification = await classify_oc(oc_session, sequence_id, sequence)
+    classification = await oc_classify_single(oc_session, sequence_id, sequence)
     taxid = classification.get('taxid')
     taxification = await taxify_ebi(ebi_session, sequence_id, taxid)
     claxification = {**classification, **taxification}
-    print(prepare_record(sequence, sequence_id, claxification), end='')
     return sequence_id, {**classification, **taxification} # merge dicts
 
 
-async def classify_taxify_records(records, one_codex_api_key, progress):
+async def oc_classify(records, one_codex_api_key, progress=False, stdout=False):
     oc_auth = aiohttp.BasicAuth(one_codex_api_key)
     conn = aiohttp.TCPConnector(limit=10)
     with aiohttp.ClientSession(auth=oc_auth, connector=conn) as oc_session:
         with aiohttp.ClientSession(connector=conn) as ebi_session:
             tasks = [classify_taxify(oc_session, ebi_session, r.id, str(r.seq)) for r in records]
-            # responses = await asyncio.gather(*tasks)
-            # return dict(responses)
-            responses = [] # Can't use async generators in 3.5... See comments below
-            if progress:
-                for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
-                    responses.append(await f)
-                # return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
-            else:
-                for f in asyncio.as_completed(tasks):
-                    responses.append(await f)
-                # return [await f for f in asyncio.as_completed(tasks)]
+            # No async generators in 3.5... :'(
+            # return [await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
+            records = []
+            for f in tqdm.tqdm(asyncio.as_completed(tasks),
+                               disable=not progress,
+                               total=len(tasks)):
+                response = await f
+                record = build_record(response[0], response[1])
+                if stdout:
+                    print(record.format('fasta'), end='')
+                records.append(record)
+            return records
+
+
+# async def oc_classify(records, one_codex_api_key, progress=False, stdout=False):
+#     oc_auth = aiohttp.BasicAuth(one_codex_api_key)
+#     conn = aiohttp.TCPConnector(limit=10)
+#     with aiohttp.ClientSession(auth=oc_auth, connector=conn) as oc_session:
+#         with aiohttp.ClientSession(connector=conn) as ebi_session:
+#             tasks = [classify_taxify(oc_session, ebi_session, r.id, str(r.seq)) for r in records]
+#             responses = await asyncio.gather(*tasks)
+#     return responses
 
 
 def kmer_lca(fasta_path,
-             out: 'send tab delimited classification output to file' = False,
              progress: 'show progress bar (sent to stderr)' = False):
-    '''Parallel taxonomic annotation of fasta sequences using the One Codex API'''
+    '''
+    Streaming lowest common ancestor sequence (LCA) classification using the One Codex API
+    Streams LCA-annotated records to stdout in fasta format
+    LCAs are assigned using an LCA index of 31mers from the One Codex database
+    '''
     conf = config()
-    records = fasta_seqrecords(fasta_path)
+    records = parse_fasta(fasta_path)
     print('Classifying sequences…', file=sys.stderr)
-    asyncio.get_event_loop().run_until_complete(classify_taxify_records(records,
-                                                                        conf['one_codex_api_key'],
-                                                                        progress))
+    asyncio.get_event_loop().run_until_complete(oc_classify(records,
+                                                            conf['one_codex_api_key'],
+                                                            progress,
+                                                            True))
     print('✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌', file=sys.stderr)
 
+
+def kmer_lca_records(fasta_path,
+                     one_codex_api_key=None,
+                     progress: 'show progress bar (sent to stderr)' = False):
+    '''
+    Parallel lowest common ancestor sequence (LCA) classification using the One Codex API
+    Returns Biopython SeqRecords with tictax annotations as the `description` attribute
+    LCAs are assigned using an LCA index of 31mers from the One Codex database
+    '''
+    records = parse_fasta(fasta_path)
+    one_codex_api_key = one_codex_api_key if one_codex_api_key else config()['one_codex_api_key']
+    print('Classifying sequences…', file=sys.stderr)
+    records = asyncio.get_event_loop().run_until_complete(oc_classify(records,
+                                                            one_codex_api_key,
+                                                            progress,
+                                                            False))
+    return records
 
 #---------------------------------------------------------------------------------------------------
 
@@ -234,7 +267,7 @@ def annotate_megan_taxids(fasta_path, megan_csv_path):
 parser = argh.ArghParser()
 parser.add_commands([plot,
                      kmer_lca,
-                     kmer_lca_offline,
+                     kmer_lca_records,
                      sort,
                      filter,
                      filter_old, 

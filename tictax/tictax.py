@@ -36,10 +36,11 @@ def parse_fasta(fasta_path):
 
 
 def build_record(id, classification):
-    description = (str(classification['taxid'])
+    description = (classification['classifier']
+                   + '|' + str(classification['taxid'])
                    + '|' + classification['sciname']
                    + '|' + classification['rank']
-                   + '|' + ':'.join(classification['lineage']))
+                   + '|' + ';'.join(classification['lineage']))
     record = SeqRecord(Seq(classification['sequence'], IUPAC.ambiguous_dna),
                        id=id, description=description)
     return record
@@ -53,8 +54,9 @@ async def oc_classify_single(session, sequence_id, sequence):
             r = await response.json()
     except (asyncio.TimeoutError, aiohttp.errors.ClientOSError, json.decoder.JSONDecodeError):
         r = {}
-    return {'sequence': sequence,
-            'k': r.get('k', ''),
+    return {'k': r.get('k', ''),
+            'sequence': sequence,
+            'classifier': 'one_codex_rt',
             'taxid': r.get('tax_id', 0),
             'support': round(r.get('n_hits', 0)/max(r.get('n_lookups', 1), 1), 4)}
 

@@ -12,9 +12,9 @@ from tictax import tictax
 def kmer_lca(fasta_path: 'path to fasta formatted input',
              progress: 'show progress bar (sent to stderr)' = False):
     '''
-    Lowest common ancestor sequence assignment using the One Codex API
-    Streams annotated records to stdout in fasta format
-    Taxa are assigned using One Codex's 31mer LCA database
+    Lowest common ancestor sequence assignment using the One Codex API.
+    Streams annotated records to stdout in fasta format.
+    Taxa assigned using the One Codex 31mer LCA database.
     '''
     conf = tictax.config()
     records = tictax.parse_fasta(fasta_path)

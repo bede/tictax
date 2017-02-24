@@ -1,6 +1,6 @@
 import os
 
-from tictax import tictax
+from tictax import tictax, cli
 
 
 test_fa_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test.fa') # 30 records
@@ -11,7 +11,7 @@ def test_cli():
     os.system('tictax -h')
 
 def test_kmer_lca(capsys): # Captures and scrutinises stdout
-    tictax.kmer_lca(test_fa_path)
+    cli.kmer_lca(test_fa_path)
     stdout, stderr = capsys.readouterr()
     assert stdout.count('>') == 30
 

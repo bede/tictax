@@ -7,7 +7,7 @@ __version__ = re.search(r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         open('tictax/__init__.py').read()).group(1)
 
 if sys.version_info[0] < 3:
-      sys.exit('Tictax requires Python 3.5 or greater. Please upgrade')
+      sys.exit('Tictax requires Python 3.5 or greater.')
 
 setup(name='tictax',
       version=__version__,
@@ -15,7 +15,7 @@ setup(name='tictax',
       url='https://github.com/bede/tictax',
       author='Bede Constantinides',
       author_email='bedeabc@gmail.com',
-      license='LICENSE',
+      license='GPL',
       packages=['tictax'],
       zip_safe=True,
       install_requires=['argh',

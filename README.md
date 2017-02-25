@@ -1,10 +1,13 @@
 # tictax: streaming sequence classification with web services
+[![PyPI version](https://badge.fury.io/py/tictax.svg)](https://badge.fury.io/py/tictax)
 
 Rapid lowest common ancestor (LCA) assignment from command line or Python using One
-Codex and EBI APIs. Capable of hundreds of requests per second with short queries.  
+Codex and EBI APIs. Capable of ~100 requests/s with the wind blowing in the right direction.  
 
-Scientific names and lineages are retrieved through chained requests to the EBI 
-taxonomy and annotated within fasta description fields for easy viewing and parsing.
+Scientific names and lineages are retrieved using the EBI taxonomy API and annotated within fasta
+description fields for easy viewing and parsing.  
+
+**BLAST-based LCA (slow, sensitive) is work in progress**
 
 ## Command line usage
 ```
@@ -69,9 +72,11 @@ pip3 install tictax
 Feel free to open issues and PRs, else [tweet](https://twitter.com/beconstant) or mail me via `b àt bede dawt im`.
 
 ## Todo ✓📌
+- [ ] `blast-lca` command - add BLAST LCA functionality
 - [x] Switch to semicolon delimiters
-- [ ] Add ebiblastn LCA functionality
 - [x] Add in onecodexrt / ebiblastn
 - [ ] `kmer-lca` command `--out` option for two column id to LCA info
 - [ ] `abundance` command for generating taxonomic abundances matrices at a specified rank
 - [ ] Stream input from stdin
+- [ ] Use`aiohttp.errors` for exception handling
+- [ ] Option to return records as async generator 

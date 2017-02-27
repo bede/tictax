@@ -2,8 +2,6 @@ import sys
 import argh
 import asyncio
 
-import pandas as pd
-
 from Bio import SeqIO
 
 from tictax import tictax

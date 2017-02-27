@@ -10,7 +10,7 @@ from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 from Bio.SeqRecord import SeqRecord
 
-import tictax
+from tictax import tictax
 
 
 def config():
@@ -22,7 +22,7 @@ def config():
         print('1) Sign up for a One Codex account at https://www.onecodex.com')
         print('2) Paste your API key below and it will be saved for future sessions')
         conf['one_codex_api_key'] = input('API key: ').strip()
-        with open(conf_path, 'w') as conf_fh: # Needs storing in a sensible place... dotfile?
+        with open(conf_path, 'w') as conf_fh:
             json.dump(conf, conf_fh)
         print('Config saved to {}'.format(conf_path))
         return conf
@@ -33,6 +33,9 @@ def config():
 
 def parse_fasta(fasta_path):
     return list(SeqIO.parse(fasta_path, 'fasta'))
+
+
+# --------------------------------------------------------------------------------------------------
 
 
 def build_record(id, classification):
@@ -84,7 +87,6 @@ async def classify_taxify(oc_session, ebi_session, sequence_id, sequence):
     classification = await oc_classify_single(oc_session, sequence_id, sequence)
     taxid = classification.get('taxid')
     taxification = await taxify_ebi(ebi_session, sequence_id, taxid)
-    # claxification = {**classification, **taxification}
     return sequence_id, {**classification, **taxification} # merge dicts
 
 
@@ -108,14 +110,14 @@ async def oc_classify(records, one_codex_api_key, progress=False, stdout=False):
             return records
 
 
-#---------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 
 
 def kmer_lca_records(fasta_path,
                      one_codex_api_key=None,
                      progress: 'show progress bar (sent to stderr)' = False):
     '''
-    Parallel lowest common ancestor sequence (LCA) classification using the One Codex API
+    Blocking parallel lowest common ancestor sequence classification using the One Codex API
     Returns Biopython SeqRecords with tictax annotations as the `description` attribute
     LCAs are assigned using an LCA index of 31mers from the One Codex database
     '''
@@ -123,34 +125,10 @@ def kmer_lca_records(fasta_path,
     one_codex_api_key = one_codex_api_key if one_codex_api_key else config()['one_codex_api_key']
     print('Classifying sequences…', file=sys.stderr)
     records = asyncio.get_event_loop().run_until_complete(oc_classify(records,
-                                                            one_codex_api_key,
-                                                            progress,
-                                                            False))
+                                                                      one_codex_api_key,
+                                                                      progress,
+                                                                      False))
     return records
-
-
-def blast_lca(fasta_path, progress: 'show progress bar (sent to stderr)' = False):
-    pass
-
-
-def sort():
-    '''stub'''
-    pass
-
-
-def rank_abundance():
-    '''stub'''
-    pass
-
-
-def blast_lca_offline(fasta_path, classifications_path, acc2tax_path):
-    '''stub'''
-    pass
-
-
-def plot(fasta_path):
-    '''stub'''
-    pass
 
 
 if __name__ == '__main__':

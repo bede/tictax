@@ -1,13 +1,13 @@
 # tictax: streaming sequence classification with web services
 [![PyPI version](https://badge.fury.io/py/tictax.svg)](https://badge.fury.io/py/tictax)
 
-Rapid lowest common ancestor (LCA) assignment from command line or Python using One
-Codex and EBI APIs. Capable of ~100 requests/s with the wind blowing in the right direction.  
+Fast and convenient lowest common ancestor (LCA) assignment from command line or Python using One
+Codex and EBI APIs. Capable of ~100 requests/s with the wind blowing in the right direction. 
 
 Scientific names and lineages are retrieved using the EBI taxonomy API and annotated within fasta
 description fields for easy viewing and parsing.  
 
-**BLAST-based LCA (slow, sensitive) is work in progress**
+**Tictax currently supports One Codex classification only. BLAST-based LCA (slow, sensitive) coming soon**
 
 ## Command line usage
 ```
@@ -50,7 +50,7 @@ optional arguments:
   -p, --progress  show progress bar (sent to stderr) (default: False)
 ```
 
-## Python API usage
+## Python API
 ### `kmer_lca_records(fasta_path, one_codex_api_key, progress=False)`
 - Returns Biopython SeqRecords with tictax annotations as the `description` attribute  
 - LCAs are assigned using an LCA index of 31mers from the One Codex database
@@ -63,7 +63,7 @@ print(records_classified.format('fasta')) # Generate multifasta
 ```
 
 ## Installation
-Requires Python 3.5+. Installs with pip. No external dependencies.
+Requires Python 3.5+. Installs with pip.
 ```
 pip3 install tictax
 ```

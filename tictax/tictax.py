@@ -1,5 +1,6 @@
 import os
 import sys
+import gzip
 import json
 import tqdm
 import asyncio
@@ -31,8 +32,18 @@ def config():
             return json.load(conf_fh)
 
 
-def parse_fasta(fasta_path):
-    return list(SeqIO.parse(fasta_path, 'fasta'))
+def parse_seqs(seqs_path):
+    is_fastq = seqs_path.endswith(('.fastq', '.fastq.gz', '.fq', '.fq.gz'))
+    if seqs_path.endswith('.gz'):
+        with gzip.open(seqs_path, 'rt') as gzip_fh:
+            if is_fastq:  # Compressed fastq
+                return list(SeqIO.parse(gzip_fh, 'fastq'))
+            else:  # Compressed fasta
+                return list(SeqIO.parse(gzip_fh, 'fasta'))
+    elif is_fastq:  # Uncompressed fastq
+        return list(SeqIO.parse(seqs_path, 'fastq')) 
+    else:  # Assume uncompressed fasta
+        return list(SeqIO.parse(seqs_path, 'fasta'))
 
 
 # --------------------------------------------------------------------------------------------------
@@ -87,7 +98,7 @@ async def classify_taxify(oc_session, ebi_session, sequence_id, sequence):
     classification = await oc_classify_single(oc_session, sequence_id, sequence)
     taxid = classification.get('taxid')
     taxification = await taxify_ebi(ebi_session, sequence_id, taxid)
-    return sequence_id, {**classification, **taxification} # merge dicts
+    return sequence_id, {**classification, **taxification}  # Merge dicts
 
 
 async def oc_classify(records, one_codex_api_key, progress=False, stdout=False):
@@ -113,7 +124,7 @@ async def oc_classify(records, one_codex_api_key, progress=False, stdout=False):
 # --------------------------------------------------------------------------------------------------
 
 
-def kmer_lca_records(fasta_path,
+def kmer_lca_records(seqs_path,
                      one_codex_api_key=None,
                      progress: 'show progress bar (sent to stderr)' = False):
     '''
@@ -121,7 +132,7 @@ def kmer_lca_records(fasta_path,
     Returns Biopython SeqRecords with tictax annotations as the `description` attribute
     LCAs are assigned using an LCA index of 31mers from the One Codex database
     '''
-    records = parse_fasta(fasta_path)
+    records = parse_seqs(seqs_path)
     one_codex_api_key = one_codex_api_key if one_codex_api_key else config()['one_codex_api_key']
     print('Classifying sequences…', file=sys.stderr)
     records = asyncio.get_event_loop().run_until_complete(oc_classify(records,

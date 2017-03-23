@@ -14,16 +14,34 @@ except Exception:
 
 
 test_fa_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test.fa') # 30 records
+test_fa_gz_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test.fa.gz') # 30 records
+test_fq_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test.fq') # 10 records
+test_fq_gz_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test.fq.gz') # 10 records
 
 
 # ----- CLI ----- 
 def test_cli():
     os.system('tictax -h')
 
-def test_kmer_lca(capsys): # Captures and scrutinises stdout
+def test_kmer_lca_fa(capsys): # Captures and scrutinises stdout
     cli.kmer_lca(test_fa_path)
     stdout, stderr = capsys.readouterr()
     assert stdout.count('>') == 30
+
+def test_kmer_lca_fa_gz(capsys): # Captures and scrutinises stdout
+    cli.kmer_lca(test_fa_gz_path)
+    stdout, stderr = capsys.readouterr()
+    assert stdout.count('>') == 30
+
+def test_kmer_lca_fq(capsys): # Captures and scrutinises stdout
+    cli.kmer_lca(test_fq_path)
+    stdout, stderr = capsys.readouterr()
+    assert stdout.count('>') == 10
+
+def test_kmer_lca_fq_gz(capsys): # Captures and scrutinises stdout
+    cli.kmer_lca(test_fq_gz_path)
+    stdout, stderr = capsys.readouterr()
+    assert stdout.count('>') == 10
 
 
 # ----- Python API -----

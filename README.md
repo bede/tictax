@@ -80,3 +80,4 @@ Feel free to open issues and PRs, else [tweet](https://twitter.com/beconstant) o
 - [ ] Stream input from stdin
 - [ ] Use`aiohttp.errors` for exception handling
 - [ ] Option to return records as async generator 
+- [x] Support `fastq` and `gzip` input

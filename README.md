@@ -35,7 +35,7 @@ optional arguments:
 ```
 ```
 $ tictax kmer-lca -h
-usage: tictax kmer-lca [-h] [-p] fasta-path
+usage: tictax kmer-lca [-h] [-f] [-p] seqs-path
 
     Lowest common ancestor sequence assignment using the One Codex API.
     Streams annotated records to stdout in fasta format.
@@ -47,17 +47,18 @@ positional arguments:
 
 optional arguments:
   -h, --help      show this help message and exit
+  -f, --fastq     input is fastq; disable autodetection (default: False)
   -p, --progress  show progress bar (sent to stderr) (default: False)
 ```
 
 ## Python API
-### `kmer_lca_records(fasta_path, one_codex_api_key, progress=False)`
+### `kmer_lca_records(seqs_path, one_codex_api_key, fastq=False, progress=False)`
 - Returns Biopython SeqRecords with tictax annotations as the `description` attribute  
 - LCAs are assigned using an LCA index of 31mers from the One Codex database
 ```python
 import tictax
 
-records = tictax.parse_fasta('test.fa') # Biopython SeqRecord generator 
+records = tictax.parse_seqs('test.fa') # Biopython SeqRecord generator 
 records_classified = tictax.kmer_lca_records(records, one_codex_api_key) # List of SeqRecords
 print(records_classified.format('fasta')) # Generate multifasta
 ```

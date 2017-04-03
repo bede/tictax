@@ -32,8 +32,8 @@ def config():
             return json.load(conf_fh)
 
 
-def parse_seqs(seqs_path):
-    is_fastq = seqs_path.endswith(('.fastq', '.fastq.gz', '.fq', '.fq.gz'))
+def parse_seqs(seqs_path, fastq):
+    is_fastq = True if seqs_path.endswith(('.fastq','.fastq.gz','.fq','.fq.gz')) or fastq else False
     if seqs_path.endswith('.gz'):
         with gzip.open(seqs_path, 'rt') as gzip_fh:
             if is_fastq:  # Compressed fastq
@@ -125,14 +125,15 @@ async def oc_classify(records, one_codex_api_key, progress=False, stdout=False):
 
 
 def kmer_lca_records(seqs_path,
-                     one_codex_api_key=None,
+                     one_codex_api_key: 'One Codex API key' = None,
+                     fastq: 'input is fastq; disable autodetection' = False,
                      progress: 'show progress bar (sent to stderr)' = False):
     '''
-    Blocking parallel lowest common ancestor sequence classification using the One Codex API
-    Returns Biopython SeqRecords with tictax annotations as the `description` attribute
-    LCAs are assigned using an LCA index of 31mers from the One Codex database
+    Parallel lowest common ancestor sequence classification of fasta/q using the One Codex API.
+    Returns Biopython SeqRecords with tictax annotations as the `description` attribute.
+    LCAs are assigned using an LCA index of 31mers from the One Codex database.
     '''
-    records = parse_seqs(seqs_path)
+    records = parse_seqs(seqs_path, fastq)
     one_codex_api_key = one_codex_api_key if one_codex_api_key else config()['one_codex_api_key']
     print('Classifying sequences…', file=sys.stderr)
     records = asyncio.get_event_loop().run_until_complete(oc_classify(records,

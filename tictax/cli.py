@@ -1,10 +1,19 @@
 import sys
 import argh
 import asyncio
+import warnings
 
 from Bio import SeqIO
 
 from tictax import tictax
+
+
+def configure_warnings(show_warnings):
+    '''Show or suppress warnings, mainly for TreeSwift Tree.mrca() operations'''
+    if show_warnings:
+        warnings.filterwarnings('always')
+    else:
+        warnings.filterwarnings('ignore')
 
 
 def kmer_lca(seqs_path: 'path to (optionally gzipped) fasta/fastq input',
@@ -25,10 +34,32 @@ def kmer_lca(seqs_path: 'path to (optionally gzipped) fasta/fastq input',
     print('✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌 ✓📌', file=sys.stderr)
 
 
+def annotate_diamond(fasta_path: 'path to fasta input',
+                     diamond_path: 'path to Diamond taxonomic classification output'):
+    '''
+    Annotate fasta headers with taxonomy information from Diamond
+    '''
+    records = tictax.parse_seqs(fasta_path)
+    annotated_records = tictax.annotate_diamond(records, diamond_path)
+    SeqIO.write(annotated_records, sys.stdout, 'fasta')
+
+
+@argh.named('filter')  # Avoids namespace coliision in CLI
+def filter_taxa(fasta_path: 'path to fasta input',
+                taxids: 'comma delimited list of taxon IDs to keep',
+                unclassified: 'pass sequences unclassified at superkingdom level >(0)' = False,
+                discard: 'discard specified taxa' = False,
+                warnings: 'show warnings' = False):
+    configure_warnings(warnings)
+    records = tictax.parse_seqs(fasta_path)
+    filtered_records = tictax.filter_taxa(records, map(int, taxids.split(',')), unclassified, discard)
+    SeqIO.write(filtered_records, sys.stdout, 'fasta')
+
+
 def main():
-    parser = argh.ArghParser()
-    parser.add_commands([kmer_lca])
-    parser.dispatch()
+    argh.dispatch_commands([kmer_lca,
+                            annotate_diamond,
+                            filter_taxa])
 
 
 if __name__ == '__main__':

@@ -3,8 +3,10 @@ import sys
 import gzip
 import json
 import tqdm
+import ete3
 import asyncio
 import aiohttp
+import warnings
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -32,7 +34,7 @@ def config():
             return json.load(conf_fh)
 
 
-def parse_seqs(seqs_path, fastq):
+def parse_seqs(seqs_path, fastq=False):
     is_fastq = True if seqs_path.endswith(('.fastq','.fastq.gz','.fq','.fq.gz')) or fastq else False
     if seqs_path.endswith('.gz'):
         with gzip.open(seqs_path, 'rt') as gzip_fh:
@@ -141,6 +143,65 @@ def kmer_lca_records(seqs_path,
                                                                       progress,
                                                                       False))
     return records
+
+
+# --------------------------------------------------------------------------------------------------
+
+
+def annotate_diamond(records, diamond_path):
+    '''
+    Retrieve scientific names and lineages for taxon IDs in Diamond output
+    Returns taxonomically annotated SeqRecords with modified description attributes
+    '''
+    contigs_metadata = {}
+    with open(diamond_path) as diamond_tax_fh:
+        for line in diamond_tax_fh:
+            contig, taxid, evalue = line.strip().split('\t')
+            contigs_metadata[contig] = dict(taxid=int(taxid), evalue=float(evalue))
+
+    ncbi = ete3.NCBITaxa()
+    taxids = {m['taxid'] for m in contigs_metadata.values()} # set of taxids
+    print(taxids)
+    taxids_lineages = ncbi.get_lineage_translator(taxids)  # dict of taxid lists
+    taxids_with_children = {x for v in taxids_lineages.values() for x in v}  # flatten into set
+    taxids_names = ncbi.get_taxid_translator(taxids_with_children)
+    taxids_ranks = ncbi.get_rank(taxids_with_children)
+
+    for contig, md in contigs_metadata.items():
+        md['sciname'] = taxids_names.get(md['taxid'])
+        md['lineage_fmt'] = (':'.join([taxids_names.get(t, '')
+                                       for t in taxids_lineages.get(md['taxid'], [])])
+                                       if md['taxid'] else None)
+
+    for r in records:
+        md = contigs_metadata[r.id]
+        r.description = f"{md['taxid']}|{md['sciname']}|{md['lineage_fmt']}"
+    return records
+
+
+def filter_taxa(records, taxids, unclassified=False, discard=False):
+    '''
+    Selectively include or discard specified taxon IDs from tictax annotated FASTA/Qs
+    Filters all children of specified taxon IDs
+    Returns subset of input SeqRecords
+    Taxon IDs of 1 and 2 are considered unclassified 
+    '''
+    taxids = set(taxids)
+    kept_records = []
+    ncbi = ete3.NCBITaxa()
+    unclassified_taxids = {0,1}
+    for r in records:
+        taxid = int(r.description.partition('|')[0].partition(' ')[2])
+        lineage = set(ncbi.get_lineage(taxid) or [0])
+        intersection = lineage & taxids
+        if taxid in unclassified_taxids and unclassified:
+            kept_records.append(r)
+        elif intersection and not discard:
+            kept_records.append(r)
+        elif not intersection and discard and taxid not in unclassified_taxids:
+            kept_records.append(r)
+
+    return kept_records
 
 
 if __name__ == '__main__':

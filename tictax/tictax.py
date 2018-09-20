@@ -161,9 +161,8 @@ def annotate_diamond(records, diamond_path):
 
     ncbi = ete3.NCBITaxa()
     taxids = {m['taxid'] for m in contigs_metadata.values()} # set of taxids
-    print(taxids)
     taxids_lineages = ncbi.get_lineage_translator(taxids)  # dict of taxid lists
-    taxids_with_children = {x for v in taxids_lineages.values() for x in v}  # flatten into set
+    taxids_with_children = {x for v in taxids_lineages.values() for x in v}  # flatten to set
     taxids_names = ncbi.get_taxid_translator(taxids_with_children)
     taxids_ranks = ncbi.get_rank(taxids_with_children)
 
@@ -175,7 +174,7 @@ def annotate_diamond(records, diamond_path):
 
     for r in records:
         md = contigs_metadata[r.id]
-        r.description = f"{md['taxid']}|{md['sciname']}|{md['lineage_fmt']}"
+        r.description = f"{md['taxid']}|{md['sciname']}|{md['lineage_fmt']}|{md['evalue']}"
     return records
 
 
@@ -191,7 +190,8 @@ def filter_taxa(records, taxids, unclassified=False, discard=False):
     ncbi = ete3.NCBITaxa()
     unclassified_taxids = {0,1}
     for r in records:
-        taxid = int(r.description.partition('|')[0].partition(' ')[2])
+        taxid, sciname, lineage, evalue = r.description.strip().partition(' ')[2].split('|')
+        taxid, evalue = int(taxid), float(evalue)
         lineage = set(ncbi.get_lineage(taxid) or [0])
         intersection = lineage & taxids
         if taxid in unclassified_taxids and unclassified:
@@ -200,6 +200,7 @@ def filter_taxa(records, taxids, unclassified=False, discard=False):
             kept_records.append(r)
         elif not intersection and discard and taxid not in unclassified_taxids:
             kept_records.append(r)
+
 
     return kept_records
 

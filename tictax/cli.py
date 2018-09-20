@@ -46,13 +46,16 @@ def annotate_diamond(fasta_path: 'path to fasta input',
 
 @argh.named('filter')  # Avoids namespace coliision in CLI
 def filter_taxa(fasta_path: 'path to fasta input',
-                taxids: 'comma delimited list of taxon IDs to keep',
+                taxids: 'comma delimited list of taxon IDs',
                 unclassified: 'pass sequences unclassified at superkingdom level >(0)' = False,
                 discard: 'discard specified taxa' = False,
                 warnings: 'show warnings' = False):
     configure_warnings(warnings)
-    records = tictax.parse_seqs(fasta_path)
-    filtered_records = tictax.filter_taxa(records, map(int, taxids.split(',')), unclassified, discard)
+    records = SeqIO.parse(fasta_path, 'fasta')
+    filtered_records = tictax.filter_taxa(records,
+                                          map(int, taxids.split(',')),
+                                          unclassified,
+                                          discard)
     SeqIO.write(filtered_records, sys.stdout, 'fasta')
 
 

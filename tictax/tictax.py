@@ -168,13 +168,14 @@ def annotate_diamond(records, diamond_path):
 
     for contig, md in contigs_metadata.items():
         md['sciname'] = taxids_names.get(md['taxid'])
+        md['rank'] = taxids_ranks.get(md['taxid'], '')
         md['lineage_fmt'] = (':'.join([taxids_names.get(t, '')
                                        for t in taxids_lineages.get(md['taxid'], [])])
                                        if md['taxid'] else None)
 
     for r in records:
         md = contigs_metadata[r.id]
-        r.description = f"{md['taxid']}|{md['sciname']}|{md['lineage_fmt']}|{md['evalue']}"
+        r.description = f"{md['taxid']}|{md['rank']}|{md['sciname']}|{md['lineage_fmt']}|{md['evalue']}"
     return records
 
 

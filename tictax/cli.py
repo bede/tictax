@@ -44,7 +44,7 @@ def annotate_diamond(fasta_path: 'path to fasta input',
     SeqIO.write(annotated_records, sys.stdout, 'fasta')
 
 
-@argh.named('filter')  # Avoids namespace coliision in CLI
+@argh.named('filter')  # Avoids namespace collision in CLI
 def filter_taxa(fasta_path: 'path to fasta input',
                 taxids: 'comma delimited list of taxon IDs',
                 unclassified: 'pass sequences unclassified at superkingdom level >(0)' = False,

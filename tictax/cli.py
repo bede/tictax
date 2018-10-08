@@ -50,6 +50,9 @@ def filter_taxa(fasta_path: 'path to fasta input',
                 unclassified: 'pass sequences unclassified at superkingdom level >(0)' = False,
                 discard: 'discard specified taxa' = False,
                 warnings: 'show warnings' = False):
+    '''
+    Customisable filtering of tictax flavoured fasta files
+    '''
     configure_warnings(warnings)
     records = SeqIO.parse(fasta_path, 'fasta')
     filtered_records = tictax.filter_taxa(records,
@@ -59,10 +62,20 @@ def filter_taxa(fasta_path: 'path to fasta input',
     SeqIO.write(filtered_records, sys.stdout, 'fasta')
 
 
+def matrix(fasta_path: 'path to tictax annotated fasta input',
+           scafstats_path: 'path to BBMap scaftstats file'):
+    '''
+    Generate taxonomic count matrix from tictax classified contigs
+    '''
+    records = SeqIO.parse(fasta_path, 'fasta')
+    tictax.matrix(records, scafstats_path)
+
+
 def main():
     argh.dispatch_commands([kmer_lca,
                             annotate_diamond,
-                            filter_taxa])
+                            filter_taxa,
+                            matrix])
 
 
 if __name__ == '__main__':

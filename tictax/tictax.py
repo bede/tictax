@@ -7,6 +7,10 @@ import ete3
 import asyncio
 import aiohttp
 import warnings
+import pandas as pd
+
+
+from collections import defaultdict
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -193,7 +197,7 @@ def filter_taxa(records, taxids, unclassified=False, discard=False):
     for r in records:
         taxid, sciname, lineage, evalue = r.description.strip().partition(' ')[2].split('|')
         taxid, evalue = int(taxid), float(evalue)
-        lineage = set(ncbi.get_lineage(taxid) or [0])
+        lineage = set(ncbi.get_lineage(taxid) or [0])  # lineage defined twice?
         intersection = lineage & taxids
         if taxid in unclassified_taxids and unclassified:
             kept_records.append(r)
@@ -204,6 +208,25 @@ def filter_taxa(records, taxids, unclassified=False, discard=False):
 
 
     return kept_records
+
+
+def matrix(records, scafstats_path):
+    '''
+    Generate taxonomic count matrix from tictax classified contigs
+    '''
+    ncbi = ete3.NCBITaxa()
+    contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[2] for r in records}
+    df = pd.read_csv(scafstats_path, sep='\t').set_index('#name')
+    contigs_counts = pd.Series(df.assignedReads.values, index=df.index).to_dict()
+    lineages_counts = defaultdict(int)
+    
+    for contig, lineage in contigs_lineages.items():
+        lineages_counts[lineage] += contigs_counts.get(contig, 0)
+
+    lineages_counts_sorted = dict(reversed(sorted(lineages_counts.items(), key=lambda x: x[1])))
+    print(pd.DataFrame(lineages_counts_sorted, index=[scafstats_path]).transpose().to_csv())
+
+
 
 
 if __name__ == '__main__':

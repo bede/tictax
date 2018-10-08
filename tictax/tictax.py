@@ -206,27 +206,61 @@ def filter_taxa(records, taxids, unclassified=False, discard=False):
         elif not intersection and discard and taxid not in unclassified_taxids:
             kept_records.append(r)
 
-
     return kept_records
+
+
+# Single record version
+# def matrix(records, scafstats_path):
+#     '''
+#     Generate taxonomic count matrix from tictax classified contigs
+#     '''
+#     ncbi = ete3.NCBITaxa()
+#     contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[2] for r in records}
+#     df = pd.read_csv(scafstats_path, sep='\t').set_index('#name')
+#     contigs_counts = pd.Series(df.assignedReads.values, index=df.index).to_dict()
+#     lineages_counts = defaultdict(int)
+    
+#     for contig, lineage in contigs_lineages.items():
+#         lineages_counts[lineage] += contigs_counts.get(contig, 0)
+
+#     lineages_counts_sorted = dict(reversed(sorted(lineages_counts.items(), key=lambda x: x[1])))
+#     print(pd.DataFrame(lineages_counts_sorted, index=[scafstats_path]).transpose().to_csv())
 
 
 def matrix(records, scafstats_path):
     '''
-    Generate taxonomic count matrix from tictax classified contigs
+    Generate taxonomic count matrix from BBMap scafstats output to tictax classified contigs
     '''
     ncbi = ete3.NCBITaxa()
-    contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[2] for r in records}
-    df = pd.read_csv(scafstats_path, sep='\t').set_index('#name')
-    contigs_counts = pd.Series(df.assignedReads.values, index=df.index).to_dict()
-    lineages_counts = defaultdict(int)
     
-    for contig, lineage in contigs_lineages.items():
-        lineages_counts[lineage] += contigs_counts.get(contig, 0)
+    # # Single file version 
+    # contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[2] for r in records}
+    # df = pd.read_csv(scafstats_path, sep='\t').set_index('#name')
+    # contigs_counts = pd.Series(df.assignedReads.values, index=df.index).to_dict()
+    # lineages_counts = defaultdict(int)
+    
+    # for contig, lineage in contigs_lineages.items():
+    #     lineages_counts[lineage] += contigs_counts.get(contig, 0)
 
-    lineages_counts_sorted = dict(reversed(sorted(lineages_counts.items(), key=lambda x: x[1])))
-    print(pd.DataFrame(lineages_counts_sorted, index=[scafstats_path]).transpose().to_csv())
+    # lineages_counts_sorted = dict(reversed(sorted(lineages_counts.items(), key=lambda x: x[1])))
+    # print(pd.DataFrame(lineages_counts_sorted, index=[scafstats_path]).transpose().to_csv())
 
+    scafstats_paths = {fn.replace('.scafstats', ''): f'{scafstats_path}/{fn}'
+                       for fn in os.listdir(scafstats_path)
+                       if fn.endswith('.scafstats')}
+    contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[2] for r in records}
+    samples = []
+    
+    for scafstat, path in scafstats_paths.items():
+        raw_df = pd.read_csv(path, sep='\t').set_index('#name')
+        contigs_counts = pd.Series(raw_df.assignedReads.values, index=raw_df.index).to_dict()
+        lineages_counts = defaultdict(int)
+        for contig, lineage in contigs_lineages.items():
+            lineages_counts[lineage] += contigs_counts.get(contig, 0)
+        counts_df = pd.DataFrame(lineages_counts, index=[scafstat]).transpose()
+        samples.append(counts_df)
 
+    print(pd.concat(samples, axis=1, sort=False).to_csv())
 
 
 if __name__ == '__main__':

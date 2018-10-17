@@ -4,6 +4,7 @@ import asyncio
 import warnings
 
 from Bio import SeqIO
+import pandas as pd
 
 from tictax import tictax
 
@@ -68,7 +69,9 @@ def matrix(fasta_path: 'path to tictax annotated fasta input',
     Generate taxonomic count matrix from tictax classified contigs
     '''
     records = SeqIO.parse(fasta_path, 'fasta')
-    tictax.matrix(records, scafstats_path)
+    df = tictax.matrix(records, scafstats_path)
+    df.to_csv(sys.stdout)
+
 
 
 def main():

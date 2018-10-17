@@ -179,7 +179,7 @@ def annotate_diamond(records, diamond_path):
 
     for r in records:
         md = contigs_metadata[r.id]
-        r.description = f"{md['taxid']}|{md['rank']}|{md['sciname']}|{md['lineage_fmt']}|{md['evalue']}"
+        r.description = f"{md['taxid']}|{md['rank']}|{md['sciname']}|{md['lineage_fmt']}"
     return records
 
 
@@ -195,8 +195,8 @@ def filter_taxa(records, taxids, unclassified=False, discard=False):
     ncbi = ete3.NCBITaxa()
     unclassified_taxids = {0,1}
     for r in records:
-        taxid, sciname, lineage, evalue = r.description.strip().partition(' ')[2].split('|')
-        taxid, evalue = int(taxid), float(evalue)
+        taxid, rank, sciname, lineage = r.description.strip().partition(' ')[2].split('|')
+        taxid = int(taxid)
         lineage = set(ncbi.get_lineage(taxid) or [0])  # lineage defined twice?
         intersection = lineage & taxids
         if taxid in unclassified_taxids and unclassified:
@@ -248,7 +248,7 @@ def matrix(records, scafstats_path):
     scafstats_paths = {fn.replace('.scafstats', ''): f'{scafstats_path}/{fn}'
                        for fn in os.listdir(scafstats_path)
                        if fn.endswith('.scafstats')}
-    contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[2] for r in records}
+    contigs_lineages = {r.id: r.description.strip().partition(' ')[2].split('|')[3] for r in records}
     samples = []
     
     for scafstat, path in scafstats_paths.items():
@@ -260,7 +260,8 @@ def matrix(records, scafstats_path):
         counts_df = pd.DataFrame(lineages_counts, index=[scafstat]).transpose()
         samples.append(counts_df)
 
-    print(pd.concat(samples, axis=1, sort=False).to_csv())
+    return pd.concat(samples, axis=1, sort=False).rename_axis('lineage')
+
 
 
 if __name__ == '__main__':

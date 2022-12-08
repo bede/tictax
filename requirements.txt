@@ -3,7 +3,7 @@ argh==0.26.2
 async-timeout==3.0.0
 attrs==18.1.0
 biopython==1.72
-certifi==2018.4.16
+certifi==2022.12.7
 chardet==3.0.4
 idna==2.7
 multidict==4.3.1
